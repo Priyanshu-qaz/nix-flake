@@ -3,8 +3,10 @@ kind: OpenTelemetryCollector
 metadata:
   name: otel
   namespace: observability
+
 spec:
   mode: deployment
+
   config:
     receivers:
       otlp:
@@ -18,7 +20,9 @@ spec:
       batch: {}
 
     exporters:
-      otlp_http:
+
+      # ================= OPENOBSERVE (SINGLE STREAM MODEL) =================
+      otlphttp/openobserve:
         endpoint: http://openobserve.openobserve:5080/api/default
         headers:
           Authorization: Basic YWRtaW5AZXhhbXBsZS5jb206RHVDSmI4dmRocXZuQ3QyTw==
@@ -26,12 +30,18 @@ spec:
 
     service:
       pipelines:
+
         traces:
           receivers: [otlp]
           processors: [batch]
-          exporters: [otlp_http]
+          exporters: [otlphttp/openobserve]
+
+        logs:
+          receivers: [otlp]
+          processors: [batch]
+          exporters: [otlphttp/openobserve]
 
         metrics:
           receivers: [otlp]
           processors: [batch]
-          exporters: [otlp_http]
+          exporters: [otlphttp/openobserve]
