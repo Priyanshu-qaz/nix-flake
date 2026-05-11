@@ -22,6 +22,8 @@ spec:
     exporters:
       otlphttp/openobserve:
         endpoint: http://openobserve.openobserve:5080/api/default
+#Endpoint for standalone openobserve
+#http://openobserve-openobserve-standalone.openobserve.svc.cluster.local:5080/api/default
         headers:
           Authorization: Basic YWRtaW5AZXhhbXBsZS5jb206RHVDSmI4dmRocXZuQ3QyTw==
           stream-name: default
