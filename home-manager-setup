@@ -1,0 +1,101 @@
+for rebuild some time -   sudo nixos-rebuild switch -I nixos-config=/etc/nixos/configuration.nix
+
+put this in configuration.nix
+nix.settings.experimental-features = [ "nix-command" "flakes" ];
+
+
+mkdir -p ~/.config/home-manager
+cd ~/.config/home-manager
+
+path - cd ~/.config/home-manager
+
+for rebuild - home-manager switch --flake ~/.config/home-manager#priyanshu
+
+
+
+#home.nix
+
+{ config, pkgs, ... }:
+{
+  home.username = "priyanshu";
+
+  home.homeDirectory = "/home/priyanshu";
+  home.stateVersion = "25.05";
+  programs.home-manager.enable = true;
+  home.packages = with pkgs; [
+    git
+
+    firefox
+
+    htop
+    curl
+    wget
+    neovim
+    kind
+    kubectl
+
+  ];
+  programs.git = {
+
+    enable = true;
+
+    userName = "Priyanshu Singh";
+
+    userEmail = "priyanshusingh271180@gmail.com";
+
+  };
+
+  programs.bash.enable = true;
+
+}
+
+
+#flake.nix
+
+{
+
+  description = "Priyanshu Home Manager";
+  inputs = {
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-25.05";
+    home-manager = {
+      url = "github:nix-community/home-manager/release-25.05";
+
+      inputs.nixpkgs.follows = "nixpkgs";
+
+    };
+
+  };
+
+  outputs = { nixpkgs, home-manager, ... }:
+  let
+    system = "x86_64-linux";
+    pkgs = import nixpkgs {
+      inherit system;
+
+    };
+
+  in {
+
+    homeConfigurations.priyanshu =
+
+      home-manager.lib.homeManagerConfiguration {
+
+        inherit pkgs;
+        modules = [
+          ./home.nix
+        ];
+      };
+  };
+}
+
+
+
+
+
+
+
+
+
+
+
+
