@@ -11,6 +11,7 @@ rebuild - sudo nixos-rebuild switch
 
 create a dir
 mkdir -p ~/.config/home-manager
+
 cd ~/.config/home-manager
 
 add home.nix and flake.nix
