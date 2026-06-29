@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: engagement-service
+  labels:
+    app: engagement-service
+spec:
+  selector:
+    app: engagement-service
+  ports:
+    - name: http
+      port: 5001
+      targetPort: 5001
+  type: ClusterIP
+

@@ -1,0 +1,14 @@
+apiVersion: opentelemetry.io/v1alpha1
+kind: Instrumentation
+metadata:
+  name: dotnet-instrumentation
+  namespace: default
+spec:
+  exporter:
+    endpoint: http://otel-collector.observability.svc.cluster.local:4317
+  sampler:
+    type: always_on
+  dotnet:
+    env:
+      - name: OTEL_DOTNET_AUTO_TRACES_ENABLED
+        value: "true"

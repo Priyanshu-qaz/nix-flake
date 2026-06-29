@@ -1,0 +1,55 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: interaction-service
+  labels:
+    app: interaction-service
+
+spec:
+  replicas: 1
+
+  selector:
+    matchLabels:
+      app: interaction-service
+
+  template:
+    metadata:
+      labels:
+        app: interaction-service
+
+      annotations:
+        # Dapr Configuration
+        # OpenTelemetry Auto Instrumentation (.NET)
+        instrumentation.opentelemetry.io/inject-dotnet: "dotnet-instrumentation"
+
+    spec:
+      containers:
+        - name: interaction-container
+          image: "localhost/interaction-service:local"
+
+          ports:
+            - containerPort: 5002
+
+          env:
+            # OpenTelemetry Exporter
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: "otel-collector:4317"
+
+            - name: OTEL_SERVICE_NAME
+              value: "interaction-service"
+
+            - name: OTEL_TRACES_EXPORTER
+              value: "otlp"
+
+            - name: OTEL_METRICS_EXPORTER
+              value: "none"
+
+            - name: OTEL_LOGS_EXPORTER
+              value: "none"
+
+            # DB Tracing (IMPORTANT)
+            - name: OTEL_DOTNET_AUTO_TRACES_SQLCLIENT_ENABLED
+              value: "true"
+
+            - name: OTEL_DOTNET_AUTO_TRACES_ENTITYFRAMEWORKCORE_ENABLED
+              value: "true"

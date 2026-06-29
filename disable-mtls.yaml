@@ -1,0 +1,11 @@
+apiVersion: dapr.io/v1alpha1
+kind: Configuration
+metadata:
+  name: dapr-config
+  namespace: dapr-system
+spec:
+  mtls:
+    enabled: false
+    controlPlaneTrustDomain: "dapr.local"
+    sentryAddress: "dapr-sentry.dapr-system.svc:5555"
+

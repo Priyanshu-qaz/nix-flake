@@ -1,0 +1,58 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: core-service
+  namespace: default
+  labels:
+    app: core-service
+
+spec:
+  replicas: 1
+
+  selector:
+    matchLabels:
+      app: core-service
+
+  template:
+    metadata:
+      labels:
+        app: core-service
+
+      annotations:
+        # OpenTelemetry Auto Instrumentation (.NET)
+        instrumentation.opentelemetry.io/inject-dotnet: "dotnet-instrumentation"
+
+    spec:
+      containers:
+        - name: core-container
+          image: "localhost/core-service:local"
+
+          ports:
+            - containerPort: 5000
+
+          env:
+            # ✅ FIXED OTEL CONFIG (IMPORTANT)
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: "http://otel-collector:4317"
+
+            - name: OTEL_EXPORTER_OTLP_PROTOCOL
+              value: "grpc"
+
+            - name: OTEL_SERVICE_NAME
+              value: "core-service"
+
+            - name: OTEL_TRACES_EXPORTER
+              value: "otlp"
+
+            - name: OTEL_METRICS_EXPORTER
+              value: "none"
+
+            - name: OTEL_LOGS_EXPORTER
+              value: "none"
+
+            # ✅ DB TRACING
+            - name: OTEL_DOTNET_AUTO_TRACES_SQLCLIENT_ENABLED
+              value: "true"
+
+            - name: OTEL_DOTNET_AUTO_TRACES_ENTITYFRAMEWORKCORE_ENABLED
+              value: "true"
