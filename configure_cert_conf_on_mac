@@ -1,0 +1,32 @@
+get cert file from git.nbt.local in os bluefin groups
+
+then add cert file on this path
+
+sudo nano /etc/pki/ca-trust/source/anchors/Nuage-cert
+update-ca-trust  # for update the cert
+
+then also add cert file on keychain.
+via administrator username and password
+
+and then open keychain and make always trust from inside keychain file
+podman machine ssh
+
+podman info   #for check the harbor conf applied or not
+
+
+
+sudo nano ~/.config/containers/registries.conf
+
+then add registries.conf from git.nbt.local from nixos-kind-cluster-os
+
+
+
+podman machine stop
+podman machine start
+
+
+
+
+
+
+

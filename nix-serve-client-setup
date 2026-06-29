@@ -1,0 +1,329 @@
+nix-serve is a small server for sharing your Nix store over the network.
+
+In your case:
+
+Your NixOS PC IP = 172.16.17.171
+nix-serve port  = 5000
+
+So nix-serve makes this URL available:
+
+http://172.16.17.171:5000
+
+Your friend’s NixOS PC can use this URL as a local Nix binary cache.
+
+Simple meaning
+
+nix-serve does this:
+
+Your /nix/store packages
+        ↓
+nix-serve
+        ↓
+Available on LAN using HTTP
+        ↓
+Friend's NixOS PC can download from your machine
+
+Local Nix Cache Setup in NixOS
+
+In NixOS, /nix/store contains installed packages.
+
+Example:
+
+/nix/store/abc123-firefox
+/nix/store/xyz456-docker
+/nix/store/pqr789-nmap
+
+Now imagine you have 3 NixOS machines in your home/company:
+
+Laptop
+PC
+Server
+
+When you update all 3 machines, normally each machine downloads packages from the internet:
+
+Laptop  → downloads Firefox from internet
+PC      → downloads Firefox from internet again
+Server  → downloads Firefox from internet again
+
+This wastes internet and time.
+
+What is Local Nix Cache?
+
+Local Nix cache means you make one machine in your local network act like a package storage server.
+
+Example:
+
+NAS / Server = Local Nix Cache
+
+Then the flow becomes:
+
+Laptop downloads package once
+        ↓
+Package is saved in local cache
+        ↓
+PC and Server download from local cache instead of internet
+
+So local Nix cache means:
+
+A local network server that stores Nix packages,
+so other NixOS machines can download from LAN instead of internet.
+
+Architecture:
+
+              cache.nixos.org
+                    |
+                    v
+          Office Cache Server
+             172.16.17.171
+                    |
+      --------------------------------
+      |              |               |
+   NixOS PC-1     NixOS PC-2      NixOS PC-3
+Server Setup
+Step 1: Generate Cache Keys
+
+Run on your server NixOS machine:
+
+sudo mkdir -p /var/cache-keys
+cd /var/cache-keys
+
+sudo nix-store --generate-binary-cache-key cache.local-1 cache-private-key.pem cache-public-key.pem
+
+sudo chmod 600 cache-private-key.pem
+sudo chmod 644 cache-public-key.pem
+
+Now show your public key:
+
+cat /var/cache-keys/cache-public-key.pem
+
+You will get output like this:
+
+cache.local-1:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx=
+
+Copy this public key. You will need it on the client PC.
+
+Step 2: Create Separate nix-serve.nix File
+
+On the server PC, run:
+
+sudo nano /etc/nixos/nix-serve.nix
+
+Paste this:
+
+{ config, pkgs, ... }:
+
+{
+  environment.systemPackages = with pkgs; [
+    nix-serve
+  ];
+
+  services.nix-serve = {
+    enable = true;
+    port = 5000;
+    secretKeyFile = "/var/cache-keys/cache-private-key.pem";
+  };
+
+  networking.firewall.allowedTCPPorts = [ 5000 ];
+}
+
+Save the file:
+
+Ctrl + O
+Enter
+Ctrl + X
+Step 3: Import nix-serve.nix in Main configuration.nix
+
+Open the main configuration file:
+
+sudo nano /etc/nixos/configuration.nix
+
+Find the imports section and add ./nix-serve.nix.
+
+Example:
+
+imports =
+  [
+    ./hardware-configuration.nix
+    ./nix-serve.nix
+  ];
+
+Now rebuild the server:
+
+sudo nixos-rebuild switch
+
+Check the nix-serve service status:
+
+systemctl status nix-serve
+
+It should show:
+
+active (running)
+Step 4: Test Server Cache Locally
+
+Run this on the server PC:
+
+curl http://127.0.0.1:5000/nix-cache-info
+
+Expected output:
+
+StoreDir: /nix/store
+WantMassQuery: 1
+Priority: 30
+
+Now test using the server IP:
+
+curl http://172.16.17.171:5000/nix-cache-info
+
+Expected output:
+
+StoreDir: /nix/store
+WantMassQuery: 1
+Priority: 30
+
+If both commands work, your server cache is running correctly.
+
+Client Setup
+Step 5: Create Separate Client Cache File
+
+On the client PC, run:
+
+sudo nano /etc/nixos/client.nix
+
+Paste this:
+
+{ config, pkgs, ... }:
+
+{
+  nix.settings = {
+    substituters = [
+      "http://172.16.17.171:5000"
+      "https://cache.nixos.org/"
+    ];
+
+    trusted-public-keys = [
+      "cache.local-1:PASTE-YOUR-PUBLIC-KEY-HERE"
+      "cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY="
+    ];
+  };
+}
+
+Now replace this:
+
+cache.local-1:PASTE-YOUR-PUBLIC-KEY-HERE
+
+with your real public key from the server.
+
+Example:
+
+"cache.local-1:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx="
+
+Final example:
+
+{ config, pkgs, ... }:
+
+{
+  nix.settings = {
+    substituters = [
+      "http://172.16.17.171:5000"
+      "https://cache.nixos.org/"
+    ];
+
+    trusted-public-keys = [
+      "cache.local-1:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx="
+      "cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY="
+    ];
+  };
+}
+
+Save the file:
+
+Ctrl + O
+Enter
+Ctrl + X
+Step 6: Import Client File in Client configuration.nix
+
+On the client PC, open:
+
+sudo nano /etc/nixos/configuration.nix
+
+Change the imports section to:
+
+imports =
+  [
+    ./hardware-configuration.nix
+    ./client.nix
+  ];
+Step 7: Rebuild Client
+
+Run on the client PC:
+
+sudo nixos-rebuild switch
+
+Restart the Nix daemon:
+
+sudo systemctl restart nix-daemon
+Step 8: Check Client Config Applied or Not
+
+Run this on the client PC:
+
+nix show-config | grep -E "substituters|trusted-public-keys"
+
+You should see something like:
+
+substituters = http://172.16.17.171:5000 https://cache.nixos.org/
+trusted-public-keys = cache.local-1:... cache.nixos.org-1:...
+
+If you see your local cache URL, then the client setup is correct.
+
+Testing with Package Install
+Step 9: Install Package on Server
+
+On the server PC, run:
+
+nix-shell -p cowsay
+
+Then exit:
+
+exit
+
+This will make sure cowsay exists in the server’s /nix/store.
+
+Step 10: Install Package on Client
+
+Because you already added the local cache permanently in client.nix, you do not need to run the big command every time.
+
+On the client PC, simply run:
+
+nix-shell -p cowsay
+
+Then test:
+
+cowsay hello
+
+Expected output:
+
+ _______
+< hello >
+ -------
+        \   ^__^
+         \  (oo)\_______
+            (__)\       )\/\
+                ||----w |
+                ||     ||
+Important Note
+
+This big command is only for temporary testing:
+
+nix-shell -p cowsay --option substituters "http://172.16.17.171:5000 https://cache.nixos.org/"
+
+After adding the cache permanently in client.nix, you only need:
+
+nix-shell -p cowsay
+
+Nix will automatically check your local cache first:
+
+http://172.16.17.171:5000
+
+Then it will check the official NixOS cache:
+
+https://cache.nixos.org/
